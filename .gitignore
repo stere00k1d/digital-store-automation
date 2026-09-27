@@ -24,3 +24,15 @@ data/
 
 # Docker
 *.pid
+# n8n runtime database, credentials, logs and local settings
+n8n/data/
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+
+# SQLite runtime files
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal

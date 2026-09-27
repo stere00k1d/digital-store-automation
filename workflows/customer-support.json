@@ -1,0 +1,492 @@
+{
+  "name": "AI Customer Support",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "customer-message",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "dc5ce920-52ee-4f50-a07b-d99de1dd5deb",
+      "name": "Webhook",
+      "webhookId": "df658bac-3e54-48f8-8055-50ffffe440ad"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "95b3e8cf-3938-4a96-aae6-e6dd586c43b5",
+              "name": "message",
+              "value": "={{$json.body.message}}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        224,
+        0
+      ],
+      "id": "5f4d74a5-94a9-4fb5-8b9e-992809fd408c",
+      "name": "Customer Message"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "qwen3:4b",
+          "mode": "id"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Ты — AI-консультант магазина цифровых товаров.\n\nТебе нужно определить намерение клиента и подготовить данные для дальнейшей обработки заказа.\n\nКАТАЛОГ:\n{{ JSON.stringify($json.catalog) }}\n\nСООБЩЕНИЕ КЛИЕНТА:\n{{ $json.message }}\n\nВозможные намерения:\n- \"question\" — клиент просто спрашивает о товаре, цене, наличии или условиях.\n- \"buy\" — клиент явно хочет купить товар.\n- \"unknown\" — невозможно определить намерение.\n\nПравила определения товара:\n- PSN_US_25 = PlayStation Store Gift Card $25 — USA\n- PSN_US_50 = PlayStation Store Gift Card $50 — USA\n- Если клиент явно называет $25 или 25 долларов — product_id = PSN_US_25.\n- Если клиент явно называет $50 или 50 долларов — product_id = PSN_US_50.\n- Если конкретный товар определить невозможно — product_id = null.\n- Если количество не указано при покупке — quantity = 1.\n- Никогда не придумывай товар, которого нет в каталоге.\n- Никогда не придумывай цену.\n\nВАЖНО:\nВерни результат СТРОГО в формате JSON.\nНе используй markdown.\nНе добавляй ```json.\nНе добавляй никаких пояснений до или после JSON.\n\nФормат:\n\n{\n  \"intent\": \"question\",\n  \"product_id\": null,\n  \"quantity\": 0,\n  \"answer\": \"текст ответа клиенту\"\n}\n\nДля покупки пример:\n\n{\n  \"intent\": \"buy\",\n  \"product_id\": \"PSN_US_25\",\n  \"quantity\": 1,\n  \"answer\": \"Хорошо, оформляем 1 карту PSN $25 для USA.\"\n}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        672,
+        0
+      ],
+      "id": "51d1bfbc-030f-4131-949f-4104b3b7c04f",
+      "name": "Message a model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "ujLqhNy5luLCjUf4",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"answer\": $json.answer,\n  \"order_id\": $json.order_id,\n  \"intent\": $json.intent,\n  \"product_id\": $json.product_id,\n  \"quantity\": $json.quantity,\n  \"order_status\": $json.order_status\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2144,
+        -96
+      ],
+      "id": "9994c9af-dab8-42e3-9c31-b27c698f9e75",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c83e9144-11bd-45eb-8b80-fe788f67607b",
+              "name": "catalog",
+              "value": "={{ {\n  \"PSN_US_25\": {\n    \"name\": \"PlayStation Store Gift Card $25 — USA\",\n    \"price_rub\": 0,\n    \"stock\": 2,\n    \"region\": \"USA\",\n    \"type\": \"gift_card\"\n  },\n  \"PSN_US_50\": {\n    \"name\": \"PlayStation Store Gift Card $50 — USA\",\n    \"price_rub\": 0,\n    \"stock\": 1,\n    \"region\": \"USA\",\n    \"type\": \"gift_card\"\n  }\n} }}",
+              "type": "object"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        448,
+        0
+      ],
+      "id": "50ef3e1d-0bbe-423c-af5e-c504e3b4df74",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = JSON.parse($json.content);\n\nreturn [\n  {\n    json: {\n      ...data,\n      catalog: $('Edit Fields').first().json.catalog,\n      order_id: `ORD-${Date.now()}`\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        0
+      ],
+      "id": "0f7bd9ed-8f33-44cd-b5a3-51fa67bd2aa3",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "const catalog = $('Edit Fields').first().json.catalog;\n\nconst product = catalog[$json.product_id];\n\nif (!product) {\n  return [{\n    json: {\n      ...$json,\n      stock_ok: false,\n      stock_error: 'Товар не найден в каталоге'\n    }\n  }];\n}\n\nconst stockOk = product.stock >= $json.quantity;\n\nreturn [{\n  json: {\n    ...$json,\n    stock: product.stock,\n    stock_ok: stockOk,\n    stock_error: stockOk\n      ? null\n      : `Недостаточно товара. В наличии: ${product.stock} шт.`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        0
+      ],
+      "id": "72df7dc8-2a18-4166-ad4a-ca457a60a37b",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "df2cd169-9bf5-4761-9e9e-252aab62aff6",
+              "leftValue": "={{ $json.stock_ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "d7a826e0-8767-4c11-b06a-16940c2d0a8e",
+              "leftValue": "={{ $json.intent }}",
+              "rightValue": "buy",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1472,
+        0
+      ],
+      "id": "fb72d3a8-e228-4084-9c96-181516b3339c",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"answer\": $json.intent === \"question\"\n    ? $json.answer\n    : $json.stock_error,\n  \"order_id\": $json.order_id,\n  \"intent\": $json.intent,\n  \"product_id\": $json.product_id,\n  \"quantity\": $json.quantity,\n  \"stock\": $json.stock,\n  \"stock_ok\": $json.stock_ok\n} }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1696,
+        96
+      ],
+      "id": "83c95bff-a804-47ad-9eb1-b692e21afb2f",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const catalog = $('Edit Fields').first().json.catalog;\nconst product = catalog[$json.product_id];\n\nconst purchasePrice = product.price_rub;\nconst sellingPrice = product.price_rub; // временно, пока реальные цены не внесены\n\nconst totalCost = purchasePrice * $json.quantity;\nconst totalSelling = sellingPrice * $json.quantity;\nconst profit = totalSelling - totalCost;\n\nreturn [{\n  json: {\n    ...$json,\n\n    product_name: product.name,\n\n    selling_price: sellingPrice,\n    purchase_price: purchasePrice,\n\n    total_cost: totalCost,\n    total_selling: totalSelling,\n    profit: profit,\n\n    order_status: 'pending'\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        -96
+      ],
+      "id": "753beaf8-7515-4302-9e72-edae0f2f2e7e",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1Lnb9klmljwLwovdFGQQrhz5qTyg9fDO04tEhDCBe3G0",
+          "mode": "list",
+          "cachedResultName": "AI Store",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Lnb9klmljwLwovdFGQQrhz5qTyg9fDO04tEhDCBe3G0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Orders",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Lnb9klmljwLwovdFGQQrhz5qTyg9fDO04tEhDCBe3G0/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "order_id": "={{ $json.order_id }}",
+            "product_id": "={{ $json.product_id }}",
+            "product_name": "={{ $json.product_name }}",
+            "quantity": "={{ $json.quantity }}",
+            "selling_price": "={{ $json.selling_price }}",
+            "purchase_price": "={{ $json.purchase_price }}",
+            "total_cost": "={{ $json.total_cost }}",
+            "total_selling": "={{ $json.total_selling }}",
+            "profit": "={{ $json.profit }}",
+            "order_status": "={{ $json.order_status }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "order_id",
+              "displayName": "order_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "product_id",
+              "displayName": "product_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "product_name",
+              "displayName": "product_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "quantity",
+              "displayName": "quantity",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "selling_price",
+              "displayName": "selling_price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "purchase_price",
+              "displayName": "purchase_price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "total_cost",
+              "displayName": "total_cost",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "total_selling",
+              "displayName": "total_selling",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "profit",
+              "displayName": "profit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "order_status",
+              "displayName": "order_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1920,
+        -96
+      ],
+      "id": "32a276fa-e422-49ca-8f3e-3e56fd24a091",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "J1CeXoRVlpNpFo7c",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Customer Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Customer Message": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "7d939248-0c5d-4b2b-8139-859f710e205c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5048cfda7692f9888d927521a43095b095f49bd417b8ae32b576b6d5a2d75b97"
+  },
+  "nodeGroups": [],
+  "id": "X9srTFjYi6NZVT9n",
+  "tags": []
+}
